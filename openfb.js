@@ -11,10 +11,14 @@ var openFB = (function () {
 
     var FB_LOGIN_URL = 'https://www.facebook.com/dialog/oauth',
 
+        options = {
+          appId: undefined,
+          hideInAppBrowserUntilLoaded: true
+        },
+
     // By default we store fbtoken in sessionStorage. This can be overridden in init()
         tokenStore = window.sessionStorage,
 
-        fbAppId,
         oauthRedirectURL,
 
     // Because the OAuth login spans multiple processes, we need to keep the login callback as variable
@@ -34,17 +38,23 @@ var openFB = (function () {
     /**
      * Initialize the OpenFB module. You must use this function and initialize the module with an appId before you can
      * use any other function.
-     * @param appId - The id of the Facebook app
+     * @param params:
+     *   - appId (required): The id of the Facebook app
+     *   - hideInAppBrowserUntilLoaded [default: true] - (only Cordova) @todo
      * @param redirectURL - The OAuth redirect URL. Optional. If not provided, we use sensible defaults.
      * @param store - The store used to save the Facebook token. Optional. If not provided, we use sessionStorage.
      */
-    function init(appId, redirectURL, store) {
+    function init(params, redirectURL, store) {
         
         // handle facebook parameter style
-        if(typeof appId == 'object') {
-            fbAppId = appId.appId;    
+        if(typeof params == 'object') {
+            options.fbAppId = params.appId;    
         } else {
-            fbAppId = appId;
+            options.fbAppId = params;
+        }
+
+        if (params.hideInAppBrowserUntilLoaded != undefined) {
+          options.hideInAppBrowserUntilLoaded = params.hideInAppBrowserUntilLoaded;
         }
         
         if (redirectURL) oauthRedirectURL = redirectURL;
@@ -96,7 +106,7 @@ var openFB = (function () {
             
         loginCallback = callback;
 
-        function loginWindowLoadStart(event) {
+        function loginWindowOnLoadStart(event) {
             var url = event.url;
             if (url.indexOf("access_token=") > 0 || url.indexOf("error=") > 0) {
                 // When we get the access token fast, the login window (inappbrowser) is still opening with animation
@@ -110,7 +120,7 @@ var openFB = (function () {
             }
         }
 
-        function loginWindowExit() {
+        function loginWindowOnExit() {
             // Handle the situation where the user closes the login window manually before completing the login process
             loginCallback({
                 error: 'user_cancelled', 
@@ -118,13 +128,30 @@ var openFB = (function () {
                 error_reason: "user_cancelled"
               });
 
-            loginWindow.removeEventListener('loadstop', loginWindowLoadStart);
-            loginWindow.removeEventListener('exit', loginWindowExit);
+            loginWindow.removeEventListener('loadstop', loginWindowOnLoadStart);
+            loginWindow.removeEventListener('exit', loginWindowOnExit);
             loginWindow = null;
         }
 
+        function loginWindowOnLoadStop() {
+          if (options.hideInAppBrowserUntilLoaded) {
+            loginWindow.show();
+          }
 
-        if (!fbAppId) {
+          // If something has loaded once, that means we can successfully connect with Facebook.
+          loginWindow.removeEventListener('loaderror', loginWindowOnLoadError);
+        }
+
+        function loginWindowOnLoadError() {
+          loginWindow.close();
+          loginCallback({
+            error: "connection_error",
+            error_description: "Failed to load Facebook login window."
+          });
+        }
+
+
+        if (!options.fbAppId) {
             return loginCallback({error: 'Facebook App Id not set.'});
         }
 
@@ -149,13 +176,19 @@ var openFB = (function () {
         }
 
         startTime = new Date().getTime();
-        loginWindow = window.open(FB_LOGIN_URL + '?client_id=' + fbAppId + '&redirect_uri=' + oauthRedirectURL +
-            '&response_type=token&display=popup&scope=' + scope, '_blank', 'location=no');
+        windowOptions = 'location=no';
+        if (options.hideInAppBrowserUntilLoaded) {
+          windowOptions += ",hidden=yes";
+        }
+        loginWindow = window.open(FB_LOGIN_URL + '?client_id=' + options.fbAppId + '&redirect_uri=' + oauthRedirectURL +
+            '&response_type=token&display=popup&scope=' + scope, '_blank', windowOptions);
 
         // If the app is running in Cordova, listen to URL changes in the InAppBrowser until we get a URL with an access_token or an error
         if (runningInCordova) {
-            loginWindow.addEventListener('loadstart', loginWindowLoadStart);
-            loginWindow.addEventListener('exit', loginWindowExit);
+            loginWindow.addEventListener('loadstart', loginWindowOnLoadStart);
+            loginWindow.addEventListener('exit', loginWindowOnExit);
+            loginWindow.addEventListener('loadstop', loginWindowOnLoadStop);
+            loginWindow.addEventListener('loaderror', loginWindowOnLoadError);
         } else {
           // Note: if the app is running in the browser,
           // the loginWindow dialog will call back by invoking the
