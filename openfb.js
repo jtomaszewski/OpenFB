@@ -13,7 +13,8 @@ var openFB = (function () {
 
         options = {
           appId: undefined,
-          hideInAppBrowserUntilLoaded: true
+          hideInAppBrowserUntilLoaded: true,
+          logoutBeforeLogin: true
         },
 
     // By default we store fbtoken in sessionStorage. This can be overridden in init()
@@ -183,6 +184,9 @@ var openFB = (function () {
         windowOptions = 'location=no';
         if (options.hideInAppBrowserUntilLoaded) {
           windowOptions += ",hidden=yes";
+        }
+        if (options.logoutBeforeLogin) {
+          windowOptions += ',clearsessioncache=yes,clearcache=yes'
         }
         loginWindow = window.open(FB_LOGIN_URL + '?client_id=' + options.fbAppId + '&redirect_uri=' + oauthRedirectURL +
             '&response_type=token&display=popup&scope=' + scope, '_blank', windowOptions);
