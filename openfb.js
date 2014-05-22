@@ -128,8 +128,10 @@ var openFB = (function () {
                 error_reason: "user_cancelled"
               });
 
-            loginWindow.removeEventListener('loadstop', loginWindowOnLoadStart);
-            loginWindow.removeEventListener('exit', loginWindowOnExit);
+            if (loginWindow) {
+              loginWindow.removeEventListener('loadstop', loginWindowOnLoadStart);
+              loginWindow.removeEventListener('exit', loginWindowOnExit);
+            }
             loginWindow = null;
         }
 
@@ -138,8 +140,10 @@ var openFB = (function () {
             loginWindow.show();
           }
 
-          // If something has loaded once, that means we can successfully connect with Facebook.
-          loginWindow.removeEventListener('loaderror', loginWindowOnLoadError);
+          if (loginWindow) {
+            // If something has loaded once, that means we can successfully connect with Facebook.
+            loginWindow.removeEventListener('loaderror', loginWindowOnLoadError);
+          }
         }
 
         function loginWindowOnLoadError() {
