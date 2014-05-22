@@ -147,11 +147,12 @@ var openFB = (function () {
           }
         }
 
-        function loginWindowOnLoadError() {
+        function loginWindowOnLoadError(event) {
           loginWindow.close();
           loginCallback({
             error: "connection_error",
-            error_description: "Failed to load Facebook login window."
+            error_description: "Failed to load Facebook login window.",
+            error_event: event
           });
         }
 
