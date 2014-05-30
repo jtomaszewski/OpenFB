@@ -12,8 +12,19 @@ var openFB = (function () {
     var FB_LOGIN_URL = 'https://www.facebook.com/dialog/oauth',
 
         options = {
+          // FB appId (required)
           appId: undefined,
+
+          // If true && in Cordova: 
+          // we won't show the FB login inAppBrowser until it gets fully loaded.
           hideInAppBrowserUntilLoaded: true,
+
+          // If true && in Cordova: 
+          // if the first FB page in the inAppBrowser meets a `loaderror`,
+          // (propably a connection error), we will immediatily close the window
+          // and return a login error
+          closeInAppBrowserOnLoadError: false,
+
           logoutBeforeLogin: true
         },
 
@@ -148,12 +159,14 @@ var openFB = (function () {
         }
 
         function loginWindowOnLoadError(event) {
-          loginWindow.close();
-          loginCallback({
-            error: "connection_error",
-            error_description: "Failed to load Facebook login window.",
-            error_event: event
-          });
+          if (options.closeInAppBrowserOnLoadError) {
+            loginWindow.close();
+            loginCallback({
+              error: "connection_error",
+              error_description: "Failed to load Facebook login window.",
+              error_event: event
+            });
+          }
         }
 
 
