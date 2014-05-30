@@ -22,8 +22,13 @@ var openFB = (function () {
           // If true && in Cordova: 
           // if the first FB page in the inAppBrowser meets a `loaderror`,
           // (propably a connection error), we will immediatily close the window
-          // and return a login error
+          // and return a `connection_error` login error.
           closeInAppBrowserOnLoadError: false,
+
+          // If true && in Cordova:
+          // if no FB page gets loaded during this time,
+          // close the window and return a `connection_timeout` login error.
+          timeoutInAppBrowser: 20 * 1000, // [ms]
 
           logoutBeforeLogin: true
         },
@@ -148,6 +153,8 @@ var openFB = (function () {
         }
 
         function loginWindowOnLoadStop() {
+          loginWindow._loaded = true;
+
           if (options.hideInAppBrowserUntilLoaded) {
             loginWindow.show();
           }
@@ -211,6 +218,18 @@ var openFB = (function () {
             loginWindow.addEventListener('exit', loginWindowOnExit);
             loginWindow.addEventListener('loadstop', loginWindowOnLoadStop);
             loginWindow.addEventListener('loaderror', loginWindowOnLoadError);
+
+            if (options.timeoutInAppBrowser) {
+              setTimeout(function(){
+                if (loginWindow && !loginWindow._loaded) {
+                  loginWindow.close();
+                  loginCallback({
+                    error: "connection_timeout",
+                    error_description: "Failed to load Facebook login window."
+                  });
+                }
+              }, options.timeoutInAppBrowser);
+            }
         } else {
           // Note: if the app is running in the browser,
           // the loginWindow dialog will call back by invoking the
